@@ -1,3 +1,9 @@
+export const maxDuration = 60; // Allow the AI up to 60 seconds to finish
+import Replicate from "replicate";
+
+export default async function handler(req, res) {
+  // ... the rest of your code ...
+
 import Replicate from "replicate";
 
 export default async function handler(req, res) {
