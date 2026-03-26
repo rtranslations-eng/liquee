@@ -2,6 +2,8 @@
   "name": "liquid-glass-pixar",
   "version": "1.0.0",
   "dependencies": {
+    "ai": "^3.0.0",
+    "@ai-sdk/replicate": "^0.0.9",
     "replicate": "^0.30.0"
   }
 }
