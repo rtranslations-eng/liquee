@@ -22,25 +22,23 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    console.log("Backend: Attempting identity-first 3D Avatar generation...");
+    console.log("Backend: Generating Pixar 3D style with identity preservation...");
 
-    // Using the ultra-reliable instant-id model, tuned for identity preservation
     const output = await replicate.run(
       "zsxkib/instant-id:2e4785a4d80dadf580077b2244c8d7c05d8e3faac04a04c02d8e099dd2876789",
       {
         input: {
           image: image,
-          // THE KEY: Notice how the prompt now explicitly demands facial likeness
-          prompt: `A highly detailed, recognizable caricature 3D animated character portrait, based on the specific person in the photo. Composition and likeness must be preserved exactly, with the specific facial geometry and unique features of the reference. Modern 3D movie rendering style, inspired by Pixar and Disney animation. Smooth subsurface scattering skin, glowing expressive eyes, Octane render, cinematic lighting, vibrant saturated colors, masterpiece, 8k resolution, clear focus, background is abstract creamy bokeh.`,
+          // Removed "caricature". Emphasizing smooth Pixar 3D while keeping likeness.
+          prompt: `A cute, high-quality 3D animated character portrait of this exact person, ${style}. In the exact style of modern Pixar and Disney 3D animated movies. Smooth subsurface scattering skin, highly detailed, vibrant colors, soft studio lighting. The face must retain the exact identity, likeness, and features of the reference photo, but rendered cleanly as a beautiful 3D animation.`,
           
-          // STRICTER NEGATIVE PROMPT:
-          negative_prompt: "photorealistic, standard photography, blemish, generic face, different identity, 2D, flat, illustration, drawing, painting, blurry, deformed, creepy",
+          // Added "caricature" to the negative prompt to prevent the exaggerated distortion
+          negative_prompt: "caricature, ugly, deformed, photorealistic, raw photography, 2D, flat, illustration, scary, creepy, generic face",
           
-          // FINE-TUNING FOR IDENTITY:
-          // A higher guidance scale tells the AI to stick strictly to the prompt details
-          guidance_scale: 8, 
-          ip_adapter_scale: 0.8, // Crucial for direct likeness
-          controlnet_conditioning_scale: 0.8 // Holds the exact facial structure
+          // Balanced scales: high enough to keep your face, low enough to let the 3D texture work
+          ip_adapter_scale: 0.65, 
+          controlnet_conditioning_scale: 0.7, 
+          guidance_scale: 6
         }
       }
     );
