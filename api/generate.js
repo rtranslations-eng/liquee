@@ -1,4 +1,4 @@
-export const maxDuration = 60; 
+export const maxDuration = 60; // Max allowed for Vercel Hobby plan
 import Replicate from "replicate";
 
 export default async function handler(req, res) {
@@ -21,22 +21,27 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    console.log("Backend: Bypassing sunglasses occlusion with face-to-many...");
+    console.log("Backend: Bypassing sunglasses occlusion with fofr/face-to-many...");
 
-    // Using fofr/face-to-many. This model traces physical shapes, ignoring eye-tracking failures.
+    // The EXACT, foolproof version hash and corrected parameters
     const output = await replicate.run(
-      "fofr/face-to-many",
+      "fofr/face-to-many:a07f252abbbd832009640b27f063ea52d87d7a23a185ca165bec23b5adc8deaf",
       {
         input: {
           image: image,
-          // '3D' is a hardcoded style trigger in this specific model that nails the Pixar look
           style: "3D", 
-          prompt: `A highly detailed 3D animated portrait of this exact person. ${backgroundStyle || "soft pastel gradient background"}. High quality, sharp features, clear focus, octane render.`,
-          negative_prompt: "wrong gender, feminine, generic face, completely different person, photorealistic, ugly, deformed, flat",
-          // Prompt strength controls how much it changes the image. 
-          // 0.65 is the sweet spot: high enough to make it 3D, low enough to keep your exact jawline and sunglasses.
-          prompt_strength: 0.65,
-          denoising_strength: 0.65
+          prompt: `A cute 3D animated character portrait of a person, ${backgroundStyle || "soft pastel background"}. High quality, sharp features, clear focus, octane render.`,
+          negative_prompt: "wrong gender, feminine, realistic, photorealistic, ugly, deformed, flat",
+          
+          // FIXED: 0.65 is the optimal setting to keep your exact shapes (hat/glasses) while applying the 3D style.
+          denoising_strength: 0.65,
+          
+          // FIXED: Prompt strength (CFG). My previous 0.65 broke the model. 4.5 is the correct baseline.
+          prompt_strength: 4.5,
+          
+          // High depth control forces the AI to trace the physical shapes in your photo, ignoring eye-tracking failures.
+          control_depth_strength: 0.9,
+          instant_id_strength: 1.0
         }
       }
     );
@@ -45,7 +50,7 @@ export default async function handler(req, res) {
         throw new Error("Generation failed to return an image.");
     }
 
-    // face-to-many returns an array, we grab the first URL
+    // fofr/face-to-many returns an array of image URLs, we grab the first one
     const imageUrl = Array.isArray(output) ? output[0] : output;
     console.log("Backend complete. Sending image.");
     
