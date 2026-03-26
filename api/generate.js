@@ -21,12 +21,8 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    // ====================================================================
-    // STEP 1: SCAN THE UPLOADED PHOTO WITH A VISION MODEL
-    // ====================================================================
+    // --- STEP 1: VISION SCAN ---
     console.log("Backend Step 1: Scanning photo to extract features...");
-    
-    // Using LLaVA, a fast and cheap vision model on Replicate
     const visionOutput = await replicate.run(
       "yorickvp/llava-13b:b5f621affc3e4f0b6c7023c1422709292b1e7c4f0b07c2ee7a9657b0bfa1503c",
       {
@@ -37,35 +33,35 @@ export default async function handler(req, res) {
       }
     );
 
-    // LLaVA returns an array of text chunks, we join them into one string
     const personDescription = visionOutput.join("").trim();
-    console.log(`Backend Step 1 Complete. Extracted features: "${personDescription}"`);
+    console.log(`Extracted features: "${personDescription}"`);
 
-
-    // ====================================================================
-    // STEP 2: GENERATE THE PIXAR AVATAR USING THE EXTRACTED FEATURES
-    // ====================================================================
+    // --- STEP 2: PIXAR GENERATION ---
     console.log("Backend Step 2: Generating Pixar 3D Avatar...");
-
-    // Using Instant-ID and injecting the description directly into the prompt
-    const prediction = await replicate.predictions.create({
-      version: "zsxkib/instant-id:2e4785a4d80dadf580077b2244c8d7c05d8e3faac04a04c02d8e099dd2876789",
-      input: {
-        image: image,
-        // THE MAGIC: Injecting the vision description into the prompt
-        prompt: `A highly detailed, modern Pixar-style 3D animated character portrait of ${personDescription}. The face must have the exact facial likeness, identifiable features, and recognizable expression of the reference photo. Adorable, smooth subsurface scattering skin, Octane render, cinematic lighting, vibrant saturated colors. Masterpiece, 8k resolution, clear focus. Background is a ${backgroundStyle}, soft and blurred bokeh.`,
-        
-        negative_prompt: "raw photography, realistic, ugly, deformed face, creepy eyes, blemish, acne, different identity, wrong gender, 2D, flat, cartoon vector, bedazzled, bad anatomy",
-        
-        // Strict adherence to the prompt and image
-        guidance_scale: 8, 
-        ip_adapter_scale: 0.7, 
-        controlnet_conditioning_scale: 0.7 
+    const output = await replicate.run(
+      "zsxkib/instant-id:2e4785a4d80dadf580077b2244c8d7c05d8e3faac04a04c02d8e099dd2876789",
+      {
+        input: {
+          image: image,
+          // Injecting the exact description (gender, beard, glasses, etc) so it cannot get confused
+          prompt: `A highly detailed, modern Pixar-style 3D animated character portrait of ${personDescription}. The face must have the exact facial likeness, identifiable features, and recognizable expression of the reference photo. Adorable, smooth subsurface scattering skin, Octane render, cinematic lighting, vibrant saturated colors. Masterpiece, 8k resolution, clear focus. Background is a ${backgroundStyle || "soft pastel gradient"}, soft and blurred bokeh.`,
+          
+          negative_prompt: "raw photography, realistic, ugly, deformed face, creepy eyes, blemish, acne, different identity, wrong gender, 2D, flat, cartoon vector, bedazzled, bad anatomy",
+          
+          guidance_scale: 8, 
+          ip_adapter_scale: 0.7, 
+          controlnet_conditioning_scale: 0.7 
+        }
       }
-    });
+    );
 
-    // Send the Prediction ID back to the frontend so it can poll for the result
-    return res.status(200).json({ predictionId: prediction.id });
+    if (!output || output.length === 0) {
+        throw new Error("Generation failed to return an image.");
+    }
+
+    // Return the final image straight to the frontend
+    console.log("Backend complete. Sending image.");
+    return res.status(200).json({ imageUrl: output[0] });
 
   } catch (error) {
     console.error("Critical Backend AI Error:", error);
