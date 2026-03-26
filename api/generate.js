@@ -22,22 +22,22 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    console.log("Backend: Attempting PhotoMaker 3D generation...");
+    console.log("Backend: Attempting identity-focused PhotoMaker V2 generation...");
 
-    // Using PhotoMaker, which is cheaper, faster, and perfect for 3D/Cartoon styles
+    // Using the superior adirik/photomaker-v2 model for perfect identity preservation
+    // Model hash: adirik/photomaker-v2:adeb44e05b3833b37996c9c6145396557876a911739c381c8b919d7095b58c53
     const output = await replicate.run(
-      "tencentarc/photomaker:ddfc2b08d209f9fa8c1eca692712918bd449f695dabb4a958da31802a9570fe4",
+      "adirik/photomaker-v2:adeb44e05b3833b37996c9c6145396557876a911739c381c8b919d7095b58c53",
       {
         input: {
           input_image: image,
-          // 'img person' is required by PhotoMaker to trigger your face
-          prompt: `A cute 3D animation character of a img person, ${style}, in the style of modern 3D animated movies, smooth rendering, octane render, highly detailed, vibrant colors, clear focus, adorable`,
-          negative_prompt: "realistic, photorealistic, ugly, deformed, noisy, blurry, low contrast, bad anatomy, flat, 2D",
-          // PhotoMaker has a specific built-in style for this! 
-          // (Note: 'Charactor' is intentionally misspelled, it's a quirk in their official API)
-          style_name: "Disney Charactor", 
-          num_steps: 25, // Lower steps = faster and cheaper
-          guidance_scale: 5,
+          // 'photo person' is required by V2 to trigger identity preservation
+          // Notice we now ask for 'recognizable caricature' and 'exact facial details'
+          prompt: `A high quality, recognizable caricature 3D animated character portrait of photo person. The face must have the exact facial details, features, and recognizable expression of the reference photo. Modern 3D movie rendering style, inspired by Pixar and Disney animation. Smooth subsurface scattering skin, Octane render, cinematic lighting, vibrant saturated colors, masterpiece, 8k resolution, clear focus, background is abstract creamy bokeh.`,
+          negative_prompt: "raw photography, realistic, noisy, blurry, generic face, different identity, 2D, ugly, cartoon vector, bad anatomy, deformed.",
+          
+          num_steps: 25, // Lower steps are faster and often preserve identity better with this model
+          guidance_scale: 7, // A higher guidance tells the AI to stick strictly to the prompt
           num_outputs: 1
         }
       }
