@@ -1,18 +1,15 @@
 import Replicate from "replicate";
 
 export default async function handler(req, res) {
-  // 1. Only allow POST requests (sending data)
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
   }
 
-  // 2. Ensure your secret API key exists in the environment
   if (!process.env.REPLICATE_API_TOKEN) {
     console.error("Security Error: REPLICATE_API_TOKEN is not defined on Vercel.");
     return res.status(500).json({ error: 'Server configuration error. API key missing.' });
   }
 
-  // 3. Parse the data sent from the index.html page
   const { image, style } = req.body;
 
   if (!image) {
@@ -20,38 +17,36 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 4. Initialize the Replicate client securely using your secret key
     const replicate = new Replicate({
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    console.log("Backend: Attempting AI generation with model...");
+    console.log("Backend: Attempting AI generation with Instant-ID model...");
 
-    // 5. CALL THE REPLICATE AI MODEL (Face-to-Many specialized SDXL model)
-    // Model used: fofr/face-to-many 
-    // This model uses an IP-Adapter (face guide) and ControlNet to preserve identity.
+    // Using the latest version of zsxkib/instant-id
     const output = await replicate.run(
-      "fofr/face-to-many:a81f9643477144e5d321f66da5e40733d0628e9323380026e63ee9a904a29a39",
+      "zsxkib/instant-id:2e4785a4d80dadf580077b2244c8d7c05d8e3faac04a04c02d8e099dd2876789",
       {
         input: {
-          image: image, // Your base64 reference photo
-          prompt: `Highly detailed professional portrait of a person in a minimalist style, matching ${style}, 8k, photorealistic, cinematic lighting, sharp face details, identical identity to reference image`,
-          negative_prompt: "bad quality, blurry, deformed face, distorted eyes, mutation, extra fingers, cartoon style unless specified",
-          number_of_outputs: 1,
-          preserve_face: true, // Tell the model identity preservation is priority #1
+          image: image,
+          prompt: `A highly detailed professional portrait, ${style}, masterpiece, 8k resolution, photorealistic, sharp face details`,
+          negative_prompt: "bad quality, blurry, deformed face, distorted eyes, mutation, extra fingers, poorly drawn, cartoonish, low resolution",
+          sdxl_weights: "stable-diffusion-xl-base-1.0",
+          guidance_scale: 5,
+          ip_adapter_scale: 0.8,
+          controlnet_conditioning_scale: 0.8
         }
       }
     );
 
-    // 6. Handle the AI output
     if (!output || output.length === 0) {
       throw new Error("Replicate model did not return any output.");
     }
 
-    const imageUrl = output[0]; // The resulting AI-generated URL
+    // Instant-ID returns an array of generated image URLs
+    const imageUrl = output[0]; 
     console.log(`Backend: AI Image generated successfully: ${imageUrl}`);
 
-    // 7. Send the successful result URL back to your index.html page
     return res.status(200).json({ imageUrl: imageUrl });
 
   } catch (error) {
