@@ -6,10 +6,13 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
   }
 
+  // Ensure your secret API key exists in the environment
   if (!process.env.REPLICATE_API_TOKEN) {
+    console.error("Security Error: REPLICATE_API_TOKEN is not defined on Vercel.");
     return res.status(500).json({ error: 'Server configuration error. API key missing.' });
   }
 
+  // Parse the data sent from the index.html page
   const { image, backgroundStyle } = req.body;
 
   if (!image) {
@@ -21,8 +24,13 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    // --- STEP 1: VISION SCAN ---
+    // ====================================================================
+    // STEP 1: SCAN THE PHOTO WITH A VISION MODEL (Your Idea!)
+    // ====================================================================
     console.log("Backend Step 1: Scanning photo to extract features...");
+    
+    // Using LLaVA, a fast and cheap vision model on Replicate
+    // Model hash: yorickvp/llava-13b:b5f621affc3e4f0b6c7023c1422709292b1e7c4f0b07c2ee7a9657b0bfa1503c
     const visionOutput = await replicate.run(
       "yorickvp/llava-13b:b5f621affc3e4f0b6c7023c1422709292b1e7c4f0b07c2ee7a9657b0bfa1503c",
       {
@@ -33,35 +41,44 @@ export default async function handler(req, res) {
       }
     );
 
+    // LLaVA returns an array of text chunks, we join them into one string
     const personDescription = visionOutput.join("").trim();
-    console.log(`Extracted features: "${personDescription}"`);
+    console.log(`Backend Step 1 Complete. Extracted features: "${personDescription}"`);
 
-    // --- STEP 2: PIXAR GENERATION ---
-    console.log("Backend Step 2: Generating Pixar 3D Avatar...");
+
+    // ====================================================================
+    // STEP 2: GENERATE THE PIXAR AVATAR USING THE FEATURES
+    // ====================================================================
+    console.log("Backend Step 2: Generating identity-first Pixar generation...");
+
+    // Using lucataco/instant-id, which is ultra-reliable for likeness.
+    // Model hash: lucataco/instant-id:a24595696d042236e1468305a415951d65a6e8f49896497491d9046f47738c8c
     const output = await replicate.run(
-      "zsxkib/instant-id:2e4785a4d80dadf580077b2244c8d7c05d8e3faac04a04c02d8e099dd2876789",
+      "lucataco/instant-id:a24595696d042236e1468305a415951d65a6e8f49896497491d9046f47738c8c",
       {
         input: {
-          image: image,
-          // Injecting the exact description (gender, beard, glasses, etc) so it cannot get confused
-          prompt: `A highly detailed, modern Pixar-style 3D animated character portrait of ${personDescription}. The face must have the exact facial likeness, identifiable features, and recognizable expression of the reference photo. Adorable, smooth subsurface scattering skin, Octane render, cinematic lighting, vibrant saturated colors. Masterpiece, 8k resolution, clear focus. Background is a ${backgroundStyle || "soft pastel gradient"}, soft and blurred bokeh.`,
+          image: image, // Use the uploaded photo as the facial guide
+          // notice how we now describe THE PERSON FIRST, then THE STYLE
+          prompt: `A cute, modern Pixar-style 3D animated character portrait of ${personDescription}, adorable and expressive. Simple clean rendering, high detailed masterpiece. Face must have the exact facial likeness and recognisable features of the reference photo. 3D render, smooth subsurface scattering skin, glowing expressive eyes, Octane render, cinematic lighting, vibrant saturated colors, masterpiece, 8k resolution, clear focus. background is a ${backgroundStyle}, soft and blurred bokeh. Nice sharp character features and clean definition.`,
           
-          negative_prompt: "raw photography, realistic, ugly, deformed face, creepy eyes, blemish, acne, different identity, wrong gender, 2D, flat, cartoon vector, bedazzled, bad anatomy",
+          negative_prompt: "raw photography, realistic, ugly, deformed face, creepy eyes, blemish, acne, different identity, wrong gender, vector, illustration, 2D, flat, caricature, glitchy, bedazzled, low contrast, bad anatomy, bad lighting",
           
-          guidance_scale: 8, 
-          ip_adapter_scale: 0.7, 
-          controlnet_conditioning_scale: 0.7 
+          // INCREASED FINE-TUNING FOR IDENTITY:
+          guidance_scale: 8, // tells the AI to stick strictly to the prompt details
+          ip_adapter_scale: 0.85, // CRITICAL: forces the likeness onto the face
+          controlnet_conditioning_scale: 0.85 // CRITICAL: holds the exact facial structure
         }
       }
     );
 
     if (!output || output.length === 0) {
-        throw new Error("Generation failed to return an image.");
+      throw new Error("Replicate model did not return any output.");
     }
 
-    // Return the final image straight to the frontend
-    console.log("Backend complete. Sending image.");
-    return res.status(200).json({ imageUrl: output[0] });
+    const imageUrl = output[0]; 
+    console.log(`Backend: AI Image generated successfully: ${imageUrl}`);
+
+    return res.status(200).json({ imageUrl: imageUrl });
 
   } catch (error) {
     console.error("Critical Backend AI Error:", error);
