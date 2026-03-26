@@ -1,4 +1,4 @@
-export const maxDuration = 60;
+export const maxDuration = 60; 
 import Replicate from "replicate";
 
 export default async function handler(req, res) {
@@ -7,9 +7,11 @@ export default async function handler(req, res) {
   }
 
   if (!process.env.REPLICATE_API_TOKEN) {
-    return res.status(500).json({ error: 'Server configuration error. API key missing.' });
+    console.error("Security Error: REPLICATE_API_TOKEN is missing.");
+    return res.status(500).json({ error: 'Server configuration error.' });
   }
 
+  // Grabbing the image and the pastel background choice from your frontend
   const { image, backgroundStyle } = req.body;
 
   if (!image) {
@@ -21,20 +23,26 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    console.log("Backend: Attempting fofr/face-to-many 3D generation...");
+    console.log("Backend: Attempting official PhotoMaker Style generation...");
 
-    // Using fofr/face-to-many - the absolute best model for converting faces to 3D/Pixar styles.
+    // The correct, stable model for stylization
     const output = await replicate.run(
-      "fofr/face-to-many",
+      "tencentarc/photomaker-style:467d062309da518648ba89d226490e02b8ed09b5abc15026e54e31c5a8cd0769",
       {
         input: {
-          image: image,
-          style: "3D",
-          prompt: `A simple, clean 3D character portrait in modern Pixar style, nice sharp features, highly detailed. The background is a clean ${backgroundStyle || 'soft pastel gradient'}, studio lighting.`,
-          negative_prompt: "photorealistic, ugly, messy, dirty, complex background, text, artifacts, deformed",
-          prompt_strength: 7, 
-          denoising_strength: 0.65, 
-          instant_id_strength: 0.8
+          input_image: image,
+          // 'img' is the strict trigger word required by this model
+          prompt: `A beautiful 3D animation of a person img, adorable and expressive. Simple clean rendering, high detailed masterpiece, nice sharp character features, clean definition. The background is a ${backgroundStyle || 'soft pastel gradient'}. Soft cinematic studio lighting, vibrant colors. Octane render, clear focus.`,
+          negative_prompt: "raw photography, realistic, noisy, blurry, different identity, generic face, caricature, bedazzled, ugly, low contrast, 2D, flat color, complex background",
+          
+          // Built-in Pixar/Disney style trigger
+          style_name: "Disney Charactor", 
+          
+          // Pushing this to 35 (out of 50) forces the clean cartoon style over raw photography
+          style_strength_ratio: 35, 
+          num_steps: 30,
+          guidance_scale: 7,
+          num_outputs: 1
         }
       }
     );
