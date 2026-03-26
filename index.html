@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Liquid Glass 3D Avatar Creator</title>
+    <title>Liquid Glass Pixar Portrait Creator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
@@ -190,22 +190,22 @@
     </div>
 
     <div class="controls">
-        <h2>3D Identity Avatar <span class="badge">SECURE</span></h2>
+        <h2>Pixar Portrait Generator <span class="badge">SECURE</span></h2>
         
         <div class="control-group">
-            <label>Upload Your Best Face Photo</label>
+            <label>Upload Your Face Photo</label>
             <input type="file" id="image-upload" accept="image/*">
         </div>
 
         <div class="control-group">
-            <label>Select Your Profile Style</label>
-            <select id="style-select">
-                <option value="modern-pixar">Modern Pixar Style (Smooth, Adorable)</option>
-                <option value="classic-disney">Classic Disney 3D (Textured, Expressive)</option>
-                <option value="sculpted-3d-bust">Sculpted 3D Bust (Detailed, Matte Finish)</option>
-                <option value="comic-3d">Comic Book 3D (Graphic Novel Style, Sharp Lines)</option>
+            <label>Pastel Background Gradient</label>
+            <select id="background-select">
+                <option value="soft pink and blue gradient">Soft Pink & Blue Cloud</option>
+                <option value="lavender and mint green gradient">Lavender & Mint Green</option>
+                <option value="apricot and pale yellow gradient">Apricot & Pale Yellow</option>
+                <option value="sky blue and peach gradient">Sky Blue & Peach</option>
             </select>
-            <button class="btn-ai" id="generate-ai-btn" disabled>⚡ Re-Style My Portrait</button>
+            <button class="btn-ai" id="generate-ai-btn" disabled>⚡ Create Pixar Avatar</button>
             <div class="hint">Upload a photo first to enable AI styling.</div>
         </div>
 
@@ -225,7 +225,6 @@
     </div>
 
     <script>
-        // DOM Elements
         const imageUpload = document.getElementById('image-upload');
         const avatarPreview = document.getElementById('avatar-preview');
         const nameInput = document.getElementById('name-input');
@@ -235,7 +234,7 @@
         const downloadBtn = document.getElementById('download-btn');
         const captureArea = document.getElementById('capture-area');
         const generateAiBtn = document.getElementById('generate-ai-btn');
-        const styleSelect = document.getElementById('style-select');
+        const backgroundSelect = document.getElementById('background-select');
         const loadingSpinner = document.getElementById('loading-spinner');
 
         let userBase64Image = null; // Store the uploaded image data
@@ -246,13 +245,10 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    // Update preview IMMEDIATELY (manual change)
                     avatarPreview.src = e.target.result;
-                    // Save base64 data for the AI call
                     userBase64Image = e.target.result;
-                    // Enable the AI button
                     generateAiBtn.disabled = false;
-                    generateAiBtn.textContent = "⚡ Re-Style My Portrait";
+                    generateAiBtn.textContent = "⚡ Create Pixar Avatar";
                 }
                 reader.readAsDataURL(file);
             }
@@ -268,7 +264,7 @@
 
             // UI Loading State
             generateAiBtn.disabled = true;
-            generateAiBtn.textContent = "AI Styling (approx. 20s)...";
+            generateAiBtn.textContent = "Processing (approx. 20s)...";
             loadingSpinner.style.display = "flex";
 
             try {
@@ -278,7 +274,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         image: userBase64Image, // Your base64 photo
-                        style: styleSelect.value 
+                        backgroundStyle: backgroundSelect.value // Pastel background choice
                     })
                 });
 
@@ -294,11 +290,11 @@
 
             } catch (error) {
                 console.error("AI Generation Error:", error);
-                alert("Failed to generate styled avatar. Vercel likely timed out because AI took too long. Try Fluid Compute settings or upgrade Vercel.");
+                alert("Failed to generate styled avatar. Make sure you redeployed with your Replicate Key on the NEW project.");
             } finally {
                 // Reset UI
                 generateAiBtn.disabled = false;
-                generateAiBtn.textContent = "⚡ Re-Style My Portrait";
+                generateAiBtn.textContent = "⚡ Create Pixar Avatar";
                 loadingSpinner.style.display = "none";
             }
         });
@@ -314,7 +310,7 @@
                 backgroundColor: null 
             }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = 'liquid-glass-profile.png';
+                link.download = 'liquid-glass-pixar-profile.png';
                 link.href = canvas.toDataURL('image/png');
                 link.click();
                 
