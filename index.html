@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liquid Glass Avatar Restyler</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-blur: 16px;
+            --glass-border: rgba(255, 255, 255, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            background: #0f172a;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        /* Abstract Gradient Background */
+        .preview-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: linear-gradient(135deg, #cee8ff 0%, #f6d1fb 50%, #d4bafc 100%);
+            overflow: hidden;
+        }
+
+        /* Decorative background shapes */
+        .shape { position: absolute; filter: blur(60px); border-radius: 50%; }
+        .shape-1 { width: 400px; height: 400px; background: #4facfe; top: -100px; left: -100px; }
+        .shape-2 { width: 500px; height: 500px; background: #fa709a; bottom: -150px; right: -50px; }
+        .shape-3 { width: 300px; height: 300px; background: #43e97b; bottom: 50px; left: 20%; }
+
+        /* The Glass Card */
+        .glass-card {
+            position: relative;
+            width: 340px;
+            padding: 40px 30px;
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            z-index: 10;
+            
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--glass-blur)) saturate(120%);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(120%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-top: 1px solid var(--glass-border);
+            border-left: 1px solid var(--glass-border);
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.1),
+                inset 0 0 20px rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .avatar-container {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            padding: 4px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.1));
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .name {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 5px;
+            text-shadow: 0 1px 2px rgba(255,255,255,0.5);
+        }
+
+        .title {
+            font-size: 14px;
+            color: #475569;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Controls Sidebar */
+        .controls {
+            width: 380px;
+            background: #1e293b;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.3);
+            z-index: 20;
+        }
+
+        h2 { font-size: 18px; margin-bottom: 5px; border-bottom: 1px solid #334155; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        
+        .badge { background: #8b5cf6; font-size: 10px; padding: 2px 6px; border-radius: 12px; font-weight: bold; }
+
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+
+        label { font-size: 13px; color: #94a3b8; font-weight: 500; }
+
+        input[type="text"], input[type="file"], select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: #fff;
+            outline: none;
+        }
+        
+        button {
+            padding: 14px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 10px;
+        }
+
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-ai { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; margin-top: 5px; }
+        .btn-ai:hover { opacity: 0.9; }
+        .btn-ai:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .hint {
+            font-size: 12px;
+            color: #64748b;
+            text-align: center;
+            margin-top: 5px;
+        }
+        
+        /* Loading overlay for the avatar */
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            display: none;
+            align-items: center; justify-content: center;
+        }
+        .spinner {
+            width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="preview-container" id="capture-area">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+        
+        <div class="glass-card" id="card">
+            <div class="avatar-container">
+                <img src="https://ui-avatars.com/api/?name=JD&background=random&size=200" alt="Profile" class="avatar" id="avatar-preview">
+                <div class="loading-overlay" id="loading-spinner"><div class="spinner"></div></div>
+            </div>
+            <div class="name" id="name-preview">Jane Doe</div>
+            <div class="title" id="title-preview">Product Designer</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <h2>AI Portrait Restyler <span class="badge">SECURE</span></h2>
+        
+        <div class="control-group">
+            <label>Upload Your Best Face Photo</label>
+            <input type="file" id="image-upload" accept="image/*">
+        </div>
+
+        <div class="control-group">
+            <label>Select Your Desired Style</label>
+            <select id="style-select">
+                <option value="modern-professional">Modern Professional (Detailed 8k, Office, Blazer)</option>
+                <option value="cyberpunk-illustration">Cyberpunk Illustration (Vibrant Neons, Highly Detailed)</option>
+                <option value="minimalist-vector">Minimalist Vector Art (Flat Design, Soft Colors)</option>
+                <option value="comic-book">Comic Book Panel (Graphic Novel Style, Sharp Lines)</option>
+            </select>
+            <button class="btn-ai" id="generate-ai-btn" disabled>⚡ Restyle My Portrait</button>
+            <div class="hint">Upload a photo first to enable AI styling.</div>
+        </div>
+
+        <h2 style="margin-top: 10px;">Manual Settings</h2>
+
+        <div class="control-group">
+            <label>Full Name</label>
+            <input type="text" id="name-input" value="Jane Doe">
+        </div>
+
+        <div class="control-group">
+            <label>Job Title</label>
+            <input type="text" id="title-input" value="Product Designer">
+        </div>
+
+        <button class="btn-primary" id="download-btn">Download Card as Image</button>
+    </div>
+
+    <script>
+        // DOM Elements
+        const imageUpload = document.getElementById('image-upload');
+        const avatarPreview = document.getElementById('avatar-preview');
+        
+        const nameInput = document.getElementById('name-input');
+        const namePreview = document.getElementById('name-preview');
+        const titleInput = document.getElementById('title-input');
+        const titlePreview = document.getElementById('title-preview');
+        
+        const downloadBtn = document.getElementById('download-btn');
+        const captureArea = document.getElementById('capture-area');
+        
+        const generateAiBtn = document.getElementById('generate-ai-btn');
+        const styleSelect = document.getElementById('style-select');
+        const loadingSpinner = document.getElementById('loading-spinner');
+
+        let userBase64Image = null; // Store the uploaded image data
+
+        // Handle Image Upload and store base64 data
+        imageUpload.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Update preview IMMEDIATELY (manual change)
+                    avatarPreview.src = e.target.result;
+                    // Save base64 data for the AI call
+                    userBase64Image = e.target.result;
+                    // Enable the AI button
+                    generateAiBtn.disabled = false;
+                    generateAiBtn.textContent = "⚡ Restyle My Portrait";
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle Text Inputs
+        nameInput.addEventListener('input', (e) => namePreview.textContent = e.target.value);
+        titleInput.addEventListener('input', (e) => titlePreview.textContent = e.target.value);
+
+        // --- AI GENERATION HOOK (Client -> Vercel Function -> Replicate) ---
+        generateAiBtn.addEventListener('click', async () => {
+            if (!userBase64Image) return;
+
+            // UI Loading State
+            generateAiBtn.disabled = true;
+            generateAiBtn.textContent = "AI Styling (approx. 10s)...";
+            loadingSpinner.style.display = "flex";
+
+            const selectedStyle = styleSelect.value;
+            const stylePrompt = styleSelect.options[styleSelect.selectedIndex].text;
+
+            try {
+                // 1. Call Your SECURE Vercel Serverless Function
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        image: userBase64Image, // Your base64 photo
+                        style: stylePrompt 
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server Error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const newImageUrl = data.imageUrl; // The URL returned by Replicate
+
+                // 2. Set the newly generated AI photo in the card
+                avatarPreview.src = newImageUrl;
+
+            } catch (error) {
+                console.error("AI Generation Error:", error);
+                alert("Failed to generate styled avatar. Check Vercel logs or console.");
+            } finally {
+                // Reset UI
+                generateAiBtn.disabled = false;
+                generateAiBtn.textContent = "⚡ Restyle My Portrait";
+                loadingSpinner.style.display = "none";
+            }
+        });
+
+        // Handle Download
+        downloadBtn.addEventListener('click', () => {
+            downloadBtn.textContent = "Generating high-res image...";
+            downloadBtn.disabled = true;
+
+            html2canvas(captureArea, {
+                scale: 2, // High resolution
+                useCORS: true, // Crucial for loading the AI image URL from replicate.delivery
+                backgroundColor: null 
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'liquid-glass-profile.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                downloadBtn.textContent = "Download Card as Image";
+                downloadBtn.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>
