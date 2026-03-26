@@ -1,4 +1,4 @@
-export const maxDuration = 60; 
+export const maxDuration = 60; // Max allowed for Vercel Hobby plan
 import Replicate from "replicate";
 
 export default async function handler(req, res) {
@@ -6,12 +6,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
   }
 
+  // Ensure your secret API key exists in the environment
   if (!process.env.REPLICATE_API_TOKEN) {
-    console.error("Security Error: REPLICATE_API_TOKEN is missing.");
+    console.error("Security Error: REPLICATE_API_TOKEN is not defined on Vercel.");
     return res.status(500).json({ error: 'Server configuration error. API key missing.' });
   }
 
-  const { image, style } = req.body;
+  // Parse the data sent from the index.html page
+  const { image, backgroundStyle } = req.body;
 
   if (!image) {
     return res.status(400).json({ error: 'A reference image is required.' });
@@ -22,23 +24,24 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    console.log("Backend: Generating Pixar 3D style with identity preservation...");
+    console.log("Backend: Attempting PhotoMaker V2 generation...");
 
+    // Using the superior tencentarc/photomaker-v2 model (Public version as of 2026)
+    // Model hash: tencentarc/photomaker-v2:635ced2c444445582f6e917d095914c62b489a54b9f2e3250e7b8c751a021577
     const output = await replicate.run(
-      "zsxkib/instant-id:2e4785a4d80dadf580077b2244c8d7c05d8e3faac04a04c02d8e099dd2876789",
+      "tencentarc/photomaker-v2:635ced2c444445582f6e917d095914c62b489a54b9f2e3250e7b8c751a021577",
       {
         input: {
-          image: image,
-          // Removed "caricature". Emphasizing smooth Pixar 3D while keeping likeness.
-          prompt: `A cute, high-quality 3D animated character portrait of this exact person, ${style}. In the exact style of modern Pixar and Disney 3D animated movies. Smooth subsurface scattering skin, highly detailed, vibrant colors, soft studio lighting. The face must retain the exact identity, likeness, and features of the reference photo, but rendered cleanly as a beautiful 3D animation.`,
+          input_image: image, // Your base64 photo
+          // 'photo person' is required by V2 to trigger identity preservation
+          prompt: `A cute, modern Pixar-style 3D animated character portrait of photo person, adorable and expressive. Simple clean rendering, high detailed masterpiece. Face must have the exact facial likeness and recognizable features of the reference photo, but with nice sharp character features and clean definition. The background is a ${backgroundStyle}, soft and blurred bokeh. Soft cinematic studio lighting, vibrant colors. Octane render, high resolution, clear focus.`,
           
-          // Added "caricature" to the negative prompt to prevent the exaggerated distortion
-          negative_prompt: "caricature, ugly, deformed, photorealistic, raw photography, 2D, flat, illustration, scary, creepy, generic face",
+          // Strict negative prompt to force your conditions
+          negative_prompt: "raw photography, realistic, noisy, blurry, different identity, generic face, caricature, bedazzled, ugly, low contrast, 2D, flat color, complex background.",
           
-          // Balanced scales: high enough to keep your face, low enough to let the 3D texture work
-          ip_adapter_scale: 0.65, 
-          controlnet_conditioning_scale: 0.7, 
-          guidance_scale: 6
+          num_steps: 25, // Optimized speed/cost for V2
+          guidance_scale: 7,
+          num_outputs: 1
         }
       }
     );
