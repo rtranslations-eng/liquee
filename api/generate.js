@@ -22,23 +22,25 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    console.log("Backend: Attempting 3D Stylized Instant-ID generation...");
+    console.log("Backend: Attempting identity-first 3D Avatar generation...");
 
-    // Using the ultra-reliable instant-id model, tuned for 3D animation
+    // Using the ultra-reliable instant-id model, tuned for identity preservation
     const output = await replicate.run(
       "zsxkib/instant-id:2e4785a4d80dadf580077b2244c8d7c05d8e3faac04a04c02d8e099dd2876789",
       {
         input: {
           image: image,
-          prompt: `A masterpiece 3D animated character portrait of a person, ${style}, in the style of modern Pixar and Disney 3D animation movies. Adorable, smooth subsurface scattering skin, highly stylized 3D render, octane render, vibrant colors, creamy background bokeh, clear focus. Exact facial likeness preserved in 3D.`,
-          negative_prompt: "photorealistic, realism, raw photo, actual human skin, ugly, 2D, flat, illustration, drawing, painting, blurry, deformed face, creepy",
+          // THE KEY: Notice how the prompt now explicitly demands facial likeness
+          prompt: `A highly detailed, recognizable caricature 3D animated character portrait, based on the specific person in the photo. Composition and likeness must be preserved exactly, with the specific facial geometry and unique features of the reference. Modern 3D movie rendering style, inspired by Pixar and Disney animation. Smooth subsurface scattering skin, glowing expressive eyes, Octane render, cinematic lighting, vibrant saturated colors, masterpiece, 8k resolution, clear focus, background is abstract creamy bokeh.`,
           
-          // THE SECRET SAUCE:
-          // Lowering the adapter scale prevents the AI from forcing real human skin textures,
-          // allowing the 3D Pixar style to successfully take over the face!
-          ip_adapter_scale: 0.45, 
-          controlnet_conditioning_scale: 0.6,
-          guidance_scale: 6
+          // STRICTER NEGATIVE PROMPT:
+          negative_prompt: "photorealistic, standard photography, blemish, generic face, different identity, 2D, flat, illustration, drawing, painting, blurry, deformed, creepy",
+          
+          // FINE-TUNING FOR IDENTITY:
+          // A higher guidance scale tells the AI to stick strictly to the prompt details
+          guidance_scale: 8, 
+          ip_adapter_scale: 0.8, // Crucial for direct likeness
+          controlnet_conditioning_scale: 0.8 // Holds the exact facial structure
         }
       }
     );
