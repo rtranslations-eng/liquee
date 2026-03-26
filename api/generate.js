@@ -1,4 +1,4 @@
-export const maxDuration = 60; // Max allowed for Vercel Hobby plan
+export const maxDuration = 60; 
 import Replicate from "replicate";
 
 export default async function handler(req, res) {
@@ -6,13 +6,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
   }
 
-  // Ensure your secret API key exists in the environment
   if (!process.env.REPLICATE_API_TOKEN) {
-    console.error("Security Error: REPLICATE_API_TOKEN is not defined on Vercel.");
     return res.status(500).json({ error: 'Server configuration error. API key missing.' });
   }
 
-  // Parse the data sent from the index.html page
   const { image, backgroundStyle } = req.body;
 
   if (!image) {
@@ -24,60 +21,34 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    // ====================================================================
-    // STEP 1: SCAN THE PHOTO WITH A VISION MODEL (Your Idea!)
-    // ====================================================================
-    console.log("Backend Step 1: Scanning photo to extract features...");
-    
-    // Using LLaVA, a fast and cheap vision model on Replicate
-    // Model hash: yorickvp/llava-13b:b5f621affc3e4f0b6c7023c1422709292b1e7c4f0b07c2ee7a9657b0bfa1503c
-    const visionOutput = await replicate.run(
-      "yorickvp/llava-13b:b5f621affc3e4f0b6c7023c1422709292b1e7c4f0b07c2ee7a9657b0bfa1503c",
+    console.log("Backend: Bypassing sunglasses occlusion with face-to-many...");
+
+    // Using fofr/face-to-many. This model traces physical shapes, ignoring eye-tracking failures.
+    const output = await replicate.run(
+      "fofr/face-to-many",
       {
         input: {
           image: image,
-          prompt: "Describe the person's face in this photo accurately but concisely. Include gender, approximate age, hair color/style, facial hair, skin tone, and accessories like glasses or hats. Write it as a single short sentence."
-        }
-      }
-    );
-
-    // LLaVA returns an array of text chunks, we join them into one string
-    const personDescription = visionOutput.join("").trim();
-    console.log(`Backend Step 1 Complete. Extracted features: "${personDescription}"`);
-
-
-    // ====================================================================
-    // STEP 2: GENERATE THE PIXAR AVATAR USING THE FEATURES
-    // ====================================================================
-    console.log("Backend Step 2: Generating identity-first Pixar generation...");
-
-    // Using lucataco/instant-id, which is ultra-reliable for likeness.
-    // Model hash: lucataco/instant-id:a24595696d042236e1468305a415951d65a6e8f49896497491d9046f47738c8c
-    const output = await replicate.run(
-      "lucataco/instant-id:a24595696d042236e1468305a415951d65a6e8f49896497491d9046f47738c8c",
-      {
-        input: {
-          image: image, // Use the uploaded photo as the facial guide
-          // notice how we now describe THE PERSON FIRST, then THE STYLE
-          prompt: `A cute, modern Pixar-style 3D animated character portrait of ${personDescription}, adorable and expressive. Simple clean rendering, high detailed masterpiece. Face must have the exact facial likeness and recognisable features of the reference photo. 3D render, smooth subsurface scattering skin, glowing expressive eyes, Octane render, cinematic lighting, vibrant saturated colors, masterpiece, 8k resolution, clear focus. background is a ${backgroundStyle}, soft and blurred bokeh. Nice sharp character features and clean definition.`,
-          
-          negative_prompt: "raw photography, realistic, ugly, deformed face, creepy eyes, blemish, acne, different identity, wrong gender, vector, illustration, 2D, flat, caricature, glitchy, bedazzled, low contrast, bad anatomy, bad lighting",
-          
-          // INCREASED FINE-TUNING FOR IDENTITY:
-          guidance_scale: 8, // tells the AI to stick strictly to the prompt details
-          ip_adapter_scale: 0.85, // CRITICAL: forces the likeness onto the face
-          controlnet_conditioning_scale: 0.85 // CRITICAL: holds the exact facial structure
+          // '3D' is a hardcoded style trigger in this specific model that nails the Pixar look
+          style: "3D", 
+          prompt: `A highly detailed 3D animated portrait of this exact person. ${backgroundStyle || "soft pastel gradient background"}. High quality, sharp features, clear focus, octane render.`,
+          negative_prompt: "wrong gender, feminine, generic face, completely different person, photorealistic, ugly, deformed, flat",
+          // Prompt strength controls how much it changes the image. 
+          // 0.65 is the sweet spot: high enough to make it 3D, low enough to keep your exact jawline and sunglasses.
+          prompt_strength: 0.65,
+          denoising_strength: 0.65
         }
       }
     );
 
     if (!output || output.length === 0) {
-      throw new Error("Replicate model did not return any output.");
+        throw new Error("Generation failed to return an image.");
     }
 
-    const imageUrl = output[0]; 
-    console.log(`Backend: AI Image generated successfully: ${imageUrl}`);
-
+    // face-to-many returns an array, we grab the first URL
+    const imageUrl = Array.isArray(output) ? output[0] : output;
+    console.log("Backend complete. Sending image.");
+    
     return res.status(200).json({ imageUrl: imageUrl });
 
   } catch (error) {
