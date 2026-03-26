@@ -1,0 +1,7 @@
+{
+  "name": "liquid-glass-avatar",
+  "version": "1.0.0",
+  "dependencies": {
+    "replicate": "^0.30.0"
+  }
+}
