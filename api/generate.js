@@ -22,23 +22,23 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    console.log("Backend: Attempting identity-focused PhotoMaker V2 generation...");
+    console.log("Backend: Attempting 3D Stylized Instant-ID generation...");
 
-    // Using the superior adirik/photomaker-v2 model for perfect identity preservation
-    // Model hash: adirik/photomaker-v2:adeb44e05b3833b37996c9c6145396557876a911739c381c8b919d7095b58c53
+    // Using the ultra-reliable instant-id model, tuned for 3D animation
     const output = await replicate.run(
-      "adirik/photomaker-v2:adeb44e05b3833b37996c9c6145396557876a911739c381c8b919d7095b58c53",
+      "zsxkib/instant-id:2e4785a4d80dadf580077b2244c8d7c05d8e3faac04a04c02d8e099dd2876789",
       {
         input: {
-          input_image: image,
-          // 'photo person' is required by V2 to trigger identity preservation
-          // Notice we now ask for 'recognizable caricature' and 'exact facial details'
-          prompt: `A high quality, recognizable caricature 3D animated character portrait of photo person. The face must have the exact facial details, features, and recognizable expression of the reference photo. Modern 3D movie rendering style, inspired by Pixar and Disney animation. Smooth subsurface scattering skin, Octane render, cinematic lighting, vibrant saturated colors, masterpiece, 8k resolution, clear focus, background is abstract creamy bokeh.`,
-          negative_prompt: "raw photography, realistic, noisy, blurry, generic face, different identity, 2D, ugly, cartoon vector, bad anatomy, deformed.",
+          image: image,
+          prompt: `A masterpiece 3D animated character portrait of a person, ${style}, in the style of modern Pixar and Disney 3D animation movies. Adorable, smooth subsurface scattering skin, highly stylized 3D render, octane render, vibrant colors, creamy background bokeh, clear focus. Exact facial likeness preserved in 3D.`,
+          negative_prompt: "photorealistic, realism, raw photo, actual human skin, ugly, 2D, flat, illustration, drawing, painting, blurry, deformed face, creepy",
           
-          num_steps: 25, // Lower steps are faster and often preserve identity better with this model
-          guidance_scale: 7, // A higher guidance tells the AI to stick strictly to the prompt
-          num_outputs: 1
+          // THE SECRET SAUCE:
+          // Lowering the adapter scale prevents the AI from forcing real human skin textures,
+          // allowing the 3D Pixar style to successfully take over the face!
+          ip_adapter_scale: 0.45, 
+          controlnet_conditioning_scale: 0.6,
+          guidance_scale: 6
         }
       }
     );
