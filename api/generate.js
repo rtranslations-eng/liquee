@@ -1,4 +1,4 @@
-export const maxDuration = 60; // Max allowed for Vercel Hobby plan
+export const maxDuration = 60; 
 import Replicate from "replicate";
 
 export default async function handler(req, res) {
@@ -21,26 +21,42 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    console.log("Backend: Bypassing sunglasses occlusion with fofr/face-to-many...");
+    // ====================================================================
+    // STEP 1: VISION SCAN (Forces the AI to recognize your gender/features)
+    // ====================================================================
+    console.log("Backend Step 1: Scanning photo...");
+    const visionOutput = await replicate.run(
+      "yorickvp/llava-13b:b5f621affc3e4f0b6c7023c1422709292b1e7c4f0b07c2ee7a9657b0bfa1503c",
+      {
+        input: {
+          image: image,
+          prompt: "Describe this person accurately but concisely: gender, facial hair, glasses, hats, expression. Write exactly 1 short sentence."
+        }
+      }
+    );
 
-    // The EXACT, foolproof version hash and corrected parameters
+    const description = visionOutput.join("").trim();
+    console.log(`Backend Step 1 Complete. AI sees: "${description}"`);
+
+    // ====================================================================
+    // STEP 2: SHAPE-TRACING GENERATION
+    // ====================================================================
+    console.log("Backend Step 2: Generating 3D Avatar...");
     const output = await replicate.run(
       "fofr/face-to-many:a07f252abbbd832009640b27f063ea52d87d7a23a185ca165bec23b5adc8deaf",
       {
         input: {
           image: image,
           style: "3D", 
-          prompt: `A cute 3D animated character portrait of a person, ${backgroundStyle || "soft pastel background"}. High quality, sharp features, clear focus, octane render.`,
-          negative_prompt: "wrong gender, feminine, realistic, photorealistic, ugly, deformed, flat",
+          // Injecting the exact description (e.g. "a man with a beard and sunglasses")
+          prompt: `A cute Pixar 3D animated character portrait of ${description}. Background: ${backgroundStyle || "soft pastel"}. High quality, sharp features, clear focus, octane render.`,
           
-          // FIXED: 0.65 is the optimal setting to keep your exact shapes (hat/glasses) while applying the 3D style.
+          negative_prompt: "female, girl, woman, feminine, wrong gender, realistic, photorealistic, ugly, deformed, flat, bad anatomy",
+          
+          // These parameters perfectly balance tracing your physical hat/glasses with applying 3D style
           denoising_strength: 0.65,
-          
-          // FIXED: Prompt strength (CFG). My previous 0.65 broke the model. 4.5 is the correct baseline.
           prompt_strength: 4.5,
-          
-          // High depth control forces the AI to trace the physical shapes in your photo, ignoring eye-tracking failures.
-          control_depth_strength: 0.9,
+          control_depth_strength: 0.8,
           instant_id_strength: 1.0
         }
       }
@@ -50,7 +66,6 @@ export default async function handler(req, res) {
         throw new Error("Generation failed to return an image.");
     }
 
-    // fofr/face-to-many returns an array of image URLs, we grab the first one
     const imageUrl = Array.isArray(output) ? output[0] : output;
     console.log("Backend complete. Sending image.");
     
