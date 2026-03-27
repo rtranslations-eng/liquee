@@ -2,45 +2,27 @@ export const maxDuration = 60;
 import Replicate from "replicate";
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
-  }
-
-  if (!process.env.REPLICATE_API_TOKEN) {
-    return res.status(500).json({ error: 'Server configuration error. API key missing.' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST.' });
+  if (!process.env.REPLICATE_API_TOKEN) return res.status(500).json({ error: 'API key missing.' });
 
   const { image, backgroundStyle } = req.body;
-
-  if (!image) {
-    return res.status(400).json({ error: 'A reference image is required.' });
-  }
+  if (!image) return res.status(400).json({ error: 'Image required.' });
 
   try {
-    const replicate = new Replicate({
-      auth: process.env.REPLICATE_API_TOKEN,
-    });
+    const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+    
+    // THIS LOG WILL PROVE WE ARE ON THE NEW VERSION
+    console.log("RUNNING NEW SDXL CODE - VERSION 10");
 
-    console.log("Backend: Using SDXL Img2Img to repaint existing pixels...");
-
-    // Using the flagship SDXL model. Because we provide an image and a prompt_strength, 
-    // it automatically runs in Img2Img mode. It traces your exact photo instead of face-mapping.
     const output = await replicate.run(
       "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
       {
         input: {
           image: image,
-          // We describe what the final painted texture should look like
-          prompt: `A 3D animated Pixar movie character portrait of a man wearing a hat and sunglasses. Smooth subsurface scattering skin, cute 3D render, octane render, vivid colors. Background: ${backgroundStyle || "soft pastel gradient"}. Masterpiece, highly detailed.`,
-          
-          negative_prompt: "photorealistic, actual photography, ugly, female, girl, wrong gender, deformed, noisy, flat",
-          
-          // THE CRITICAL SETTING: 
-          // 0.0 means "don't change the photo at all". 1.0 means "ignore the photo, make a new one".
-          // 0.55 is the sweet spot: It keeps the exact shapes of your hat, sunglasses, and jawline, 
-          // but completely repaints the lighting and texture into 3D plastic.
-          prompt_strength: 0.55, 
-          
+          // Explicitly demanding a man with a hat and sunglasses. 
+          prompt: `A 3D animated Pixar movie character portrait of a handsome man wearing a hat and sunglasses. Smooth subsurface scattering skin, cute 3D render, octane render, vivid colors. Background: ${backgroundStyle || "soft pastel gradient"}. Masterpiece, highly detailed.`,
+          negative_prompt: "photorealistic, actual photography, ugly, female, girl, woman, wrong gender, deformed, noisy",
+          prompt_strength: 0.55, // Traces your exact photo layout
           num_outputs: 1,
           scheduler: "K_EULER",
           guidance_scale: 7.5
@@ -48,21 +30,10 @@ export default async function handler(req, res) {
       }
     );
 
-    if (!output || output.length === 0) {
-        throw new Error("Generation failed to return an image.");
-    }
-
-    // SDXL returns an array of image URLs
-    const imageUrl = output[0];
-    console.log("Backend complete. Sending image.");
-    
-    return res.status(200).json({ imageUrl: imageUrl });
+    return res.status(200).json({ imageUrl: output[0] });
 
   } catch (error) {
-    console.error("Critical Backend AI Error:", error);
-    return res.status(500).json({ 
-      error: 'AI Generation failed.',
-      details: error.message 
-    });
+    console.error("Backend Error:", error);
+    return res.status(500).json({ error: 'AI Generation failed.', details: error.message });
   }
 }
