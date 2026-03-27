@@ -11,20 +11,20 @@ export default async function handler(req, res) {
   try {
     const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
     
-    console.log("Backend: Using working SDXL Img2Img with HIGH strength to fix glitches...");
+    console.log("Backend: Using SDXL with the Perfect Prompt and Auto-Upscaled Image...");
 
     const output = await replicate.run(
       "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
       {
         input: {
           image: image,
-          prompt: `A cute, flawless 3D animated Pixar movie character portrait of a handsome man wearing a hat and sunglasses. Smooth plastic subsurface scattering skin, cute 3D render, octane render, vivid colors. Background: ${backgroundStyle || "soft pastel gradient"}. Masterpiece, highly detailed, clean lines.`,
           
-          // Added "splotchy", "glitchy", and "real skin" to aggressively stop the messy textures
-          negative_prompt: "photorealistic, actual photography, ugly, female, girl, woman, wrong gender, deformed, noisy, splotchy, glitchy, messy textures, real skin, blemishes",
+          // THE PERFECT PROMPT: High detail, specific accessories, and octane render
+          prompt: `A cute, flawless 3D animated Pixar movie character portrait of a handsome young man wearing a black "Obey" baseball cap and tortoiseshell sunglasses with a short beard. Smooth plastic subsurface scattering skin, cute 3D render, octane render, vivid colors. Background: ${backgroundStyle || "soft pastel gradient"}. Masterpiece, highly detailed, clean lines.`,
           
-          // THE FIX: Bumping from 0.55 to 0.75. 
-          // This gives the AI the power to fully replace your photo's noise with smooth 3D plastic.
+          negative_prompt: "photorealistic, actual photography, ugly, female, girl, woman, wrong gender, deformed, noisy, splotchy, glitchy, messy textures, real skin, blemishes, text issues",
+          
+          // 0.75 lets the AI paint those clean 3D textures over your upscaled image
           prompt_strength: 0.75, 
           
           num_outputs: 1,
