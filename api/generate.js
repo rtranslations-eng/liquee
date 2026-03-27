@@ -11,26 +11,25 @@ export default async function handler(req, res) {
   try {
     const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
     
-    console.log("Backend: Using SDXL DEPTH to stop the melting...");
+    console.log("Backend: Using working SDXL Img2Img with HIGH strength to fix glitches...");
 
     const output = await replicate.run(
-      "replicate/depth-to-image-sdxl:acba9ca5e0c5f465c407d7211a7c36a3e639a667b938f3258c70d440d9955743",
+      "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
       {
         input: {
           image: image,
-          // Explicitly demanding a man with a hat and sunglasses, forcing clean textures.
-          prompt: `A cute, high-quality, modern Pixar animated movie character portrait of a handsome man with a beard, wearing a hat and sunglasses. 3D render, flawless subsurface scattering skin, glowing expressive eyes, Octane render, cinematic lighting, vibrant saturated colors, 8k resolution, clear focus. Background is a ${backgroundStyle || 'soft pastel gradient'}.`,
+          prompt: `A cute, flawless 3D animated Pixar movie character portrait of a handsome man wearing a hat and sunglasses. Smooth plastic subsurface scattering skin, cute 3D render, octane render, vivid colors. Background: ${backgroundStyle || "soft pastel gradient"}. Masterpiece, highly detailed, clean lines.`,
           
-          // Aggressive negative prompt against mutations
-          negative_prompt: "raw photography, realistic, noise, splotches, artifacts, blurry, bad anatomy, deformed face, generic features, ugly, mutated, melting, deformed, puppyslug",
+          // Added "splotchy", "glitchy", and "real skin" to aggressively stop the messy textures
+          negative_prompt: "photorealistic, actual photography, ugly, female, girl, woman, wrong gender, deformed, noisy, splotchy, glitchy, messy textures, real skin, blemishes",
           
-          // 0.65 allows it to change the texture to plastic without losing your hat's shape
-          prompt_strength: 0.65, 
+          // THE FIX: Bumping from 0.55 to 0.75. 
+          // This gives the AI the power to fully replace your photo's noise with smooth 3D plastic.
+          prompt_strength: 0.75, 
           
-          // 0.9 forces it to build a strict 3D mold of your photo so nothing melts out of place
-          control_depth_strength: 0.9,
-          
-          num_inference_steps: 30
+          num_outputs: 1,
+          scheduler: "K_EULER",
+          guidance_scale: 7.5
         }
       }
     );
