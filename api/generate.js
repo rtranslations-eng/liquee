@@ -21,43 +21,29 @@ export default async function handler(req, res) {
       auth: process.env.REPLICATE_API_TOKEN,
     });
 
-    // ====================================================================
-    // STEP 1: VISION SCAN (Forces the AI to recognize your gender/features)
-    // ====================================================================
-    console.log("Backend Step 1: Scanning photo...");
-    const visionOutput = await replicate.run(
-      "yorickvp/llava-13b:b5f621affc3e4f0b6c7023c1422709292b1e7c4f0b07c2ee7a9657b0bfa1503c",
-      {
-        input: {
-          image: image,
-          prompt: "Describe this person accurately but concisely: gender, facial hair, glasses, hats, expression. Write exactly 1 short sentence."
-        }
-      }
-    );
+    console.log("Backend: Using SDXL Img2Img to repaint existing pixels...");
 
-    const description = visionOutput.join("").trim();
-    console.log(`Backend Step 1 Complete. AI sees: "${description}"`);
-
-    // ====================================================================
-    // STEP 2: SHAPE-TRACING GENERATION
-    // ====================================================================
-    console.log("Backend Step 2: Generating 3D Avatar...");
+    // Using the flagship SDXL model. Because we provide an image and a prompt_strength, 
+    // it automatically runs in Img2Img mode. It traces your exact photo instead of face-mapping.
     const output = await replicate.run(
-      "fofr/face-to-many:a07f252abbbd832009640b27f063ea52d87d7a23a185ca165bec23b5adc8deaf",
+      "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
       {
         input: {
           image: image,
-          style: "3D", 
-          // Injecting the exact description (e.g. "a man with a beard and sunglasses")
-          prompt: `A cute Pixar 3D animated character portrait of ${description}. Background: ${backgroundStyle || "soft pastel"}. High quality, sharp features, clear focus, octane render.`,
+          // We describe what the final painted texture should look like
+          prompt: `A 3D animated Pixar movie character portrait of a man wearing a hat and sunglasses. Smooth subsurface scattering skin, cute 3D render, octane render, vivid colors. Background: ${backgroundStyle || "soft pastel gradient"}. Masterpiece, highly detailed.`,
           
-          negative_prompt: "female, girl, woman, feminine, wrong gender, realistic, photorealistic, ugly, deformed, flat, bad anatomy",
+          negative_prompt: "photorealistic, actual photography, ugly, female, girl, wrong gender, deformed, noisy, flat",
           
-          // These parameters perfectly balance tracing your physical hat/glasses with applying 3D style
-          denoising_strength: 0.65,
-          prompt_strength: 4.5,
-          control_depth_strength: 0.8,
-          instant_id_strength: 1.0
+          // THE CRITICAL SETTING: 
+          // 0.0 means "don't change the photo at all". 1.0 means "ignore the photo, make a new one".
+          // 0.55 is the sweet spot: It keeps the exact shapes of your hat, sunglasses, and jawline, 
+          // but completely repaints the lighting and texture into 3D plastic.
+          prompt_strength: 0.55, 
+          
+          num_outputs: 1,
+          scheduler: "K_EULER",
+          guidance_scale: 7.5
         }
       }
     );
@@ -66,7 +52,8 @@ export default async function handler(req, res) {
         throw new Error("Generation failed to return an image.");
     }
 
-    const imageUrl = Array.isArray(output) ? output[0] : output;
+    // SDXL returns an array of image URLs
+    const imageUrl = output[0];
     console.log("Backend complete. Sending image.");
     
     return res.status(200).json({ imageUrl: imageUrl });
