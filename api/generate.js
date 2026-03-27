@@ -18,15 +18,9 @@ export default async function handler(req, res) {
       {
         input: {
           image: image,
-          
-          // THE PERFECT PROMPT: High detail, specific accessories, and octane render
           prompt: `A cute, flawless 3D animated Pixar movie character portrait of a handsome young man wearing a black "Obey" baseball cap and tortoiseshell sunglasses with a short beard. Smooth plastic subsurface scattering skin, cute 3D render, octane render, vivid colors. Background: ${backgroundStyle || "soft pastel gradient"}. Masterpiece, highly detailed, clean lines.`,
-          
           negative_prompt: "photorealistic, actual photography, ugly, female, girl, woman, wrong gender, deformed, noisy, splotchy, glitchy, messy textures, real skin, blemishes, text issues",
-          
-          // 0.75 lets the AI paint those clean 3D textures over your upscaled image
           prompt_strength: 0.75, 
-          
           num_outputs: 1,
           scheduler: "K_EULER",
           guidance_scale: 7.5
